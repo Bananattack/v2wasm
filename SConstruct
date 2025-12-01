@@ -35,10 +35,11 @@ def EmscriptenEnvironment():
 
     emscriptenOpts = [
         '-s', 'ASYNCIFY',
-        '-s', 'ASYNCIFY_IMPORTS=["fetchSync","downloadAll","wasm_nextFrame","emscripten_sleep"]',
+        '-s', 'ASYNCIFY_IMPORTS=["fetchSync","downloadAll","wasm_nextFrameSleep","emscripten_sleep"]',
         '-s', 'FETCH=1',
         '-s', 'FORCE_FILESYSTEM=1',
         '-s', 'ALLOW_MEMORY_GROWTH=1',
+        '-s', 'STACK_SIZE=5MB',
     ]
 
     cflags = ['-fcolor-diagnostics', '-fno-rtti', '-fno-exceptions']
@@ -73,7 +74,6 @@ def EmscriptenEnvironment():
             '-s', 'ASSERTIONS=1',
             '-s', 'STACK_OVERFLOW_CHECK=1',
             '-s', 'DEMANGLE_SUPPORT=1',
-            '-s', 'STACK_SIZE=5MB',
         ]
 
         cflags.append('-g')

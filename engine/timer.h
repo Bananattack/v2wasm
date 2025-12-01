@@ -17,5 +17,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void InitTimer();
 void ShutdownTimer();
+void timerUpdate();
 
 extern unsigned int systemtime, timer_count, vctimer, hktimer;

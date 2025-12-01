@@ -698,7 +698,7 @@ function updateGlobalBufferAndViews(buf) {
   Module['HEAPF64'] = HEAPF64 = new Float64Array(buf);
 }
 
-var STACK_SIZE = 65536;
+var STACK_SIZE = 5242880;
 if (Module['STACK_SIZE']) assert(STACK_SIZE === Module['STACK_SIZE'], 'the stack size can no longer be determined at runtime')
 
 var INITIAL_MEMORY = Module['INITIAL_MEMORY'] || 16777216;legacyModuleProp('INITIAL_MEMORY', 'INITIAL_MEMORY');
@@ -1215,9 +1215,11 @@ var tempI64;
 // === Body ===
 
 var ASM_CONSTS = {
-  109523: () => { window.verge.setLoadingProgress(100); }
+  5287421: () => { window.verge.setLoadingProgress(100); }
 };
 function setBuildDate(date) { if (verge.setBuildDate) verge.setBuildDate(UTF8ToString(date)); }
+function wasm_initTimer() { window.VERGE_TIMER_FRAME_STEP = 10; window.vergeTimerLast = performance.now(); window.vergeTimerAccumulator = 0; }
+function wasm_timerUpdate() { console.log("wasm_timerUpdate"); if (typeof(window.vergeTimerLast) === 'undefined') { return; } const time = performance.now(); window.vergeTimerAccumulator += Math.max(time - window.vergeTimerLast, 0); window.vergeTimerLast = time; const frameDelta = Math.floor(window.vergeTimerAccumulator / window.VERGE_TIMER_FRAME_STEP); window.vergeTimerAccumulator -= frameDelta * window.VERGE_TIMER_FRAME_STEP; return frameDelta; }
 function wasm_initSound() { const ctx = new AudioContext(); const gainNode = ctx.createGain(); gainNode.connect(ctx.destination); window.verge.audioContext = ctx; window.verge.gainNode = gainNode; window.verge.sounds = {}; if (ctx.audioWorklet) { window.verge.mptInited = ctx.audioWorklet.addModule('mpt-worklet.js').then(() => { console.log('mpt-worklet initialized'); window.verge.mptNode = new AudioWorkletNode(ctx, 'libopenmpt-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2], }); window.verge.mptNode.connect(gainNode); }); } else { console.warn("AudioWorklet is not supported in this browser.  No music.  Sorry!"); window.verge.mptInited = Promise.resolve(); } }
 function wasm_loadSound(filename,soundData,soundDataSize) { const name = UTF8ToString(filename); const audioData = HEAPU8.buffer.slice(soundData, soundData + soundDataSize); window.verge = window.verge || {}; window.verge.audioContext.decodeAudioData( audioData, decoded => { window.verge.sounds[name] = decoded; }, () => { console.log("Unable to load sound data for ", name); } ); }
 function wasm_playSound(filename) { const name = UTF8ToString(filename); const sound = window.verge.sounds[name]; if (!sound) { console.error("Unknown sound ", name); return; } const source = window.verge.audioContext.createBufferSource(); source.connect(window.verge.audioContext.destination); source.buffer = sound; source.start(0); }
@@ -1227,7 +1229,7 @@ function wasm_setVolume(volume) { console.log('setvolume', volume); window.verge
 function wasm_initvga(width,height) { window.vergeCanvas = document.getElementById('vergeCanvas'); window.vergeCanvas.width = width; window.vergeCanvas.height = height; window.vergeContext = window.vergeCanvas.getContext('2d'); window.vergeImageData = new ImageData(width, height); window.vergeImageArray = window.vergeImageData.data; }
 function wasm_vgaresize(width,height) { console.log("wasm_vgaresize", width, height); window.vergeCanvas.width = width; window.vergeCanvas.height = height; window.vergeImageData = new ImageData(width, height); window.vergeImageArray = window.vergeImageData.data; }
 function wasm_vgadump(frameBuffer,frameBufferSize) { const fb = HEAPU8.subarray(frameBuffer, frameBuffer + frameBufferSize); window.vergeImageArray.set(fb); window.vergeContext.putImageData(window.vergeImageData, 0, 0); }
-function wasm_nextFrame() { return Asyncify.handleSleep(requestAnimationFrame); }
+function wasm_nextFrameSleep() { return Asyncify.handleSleep(requestAnimationFrame); }
 function wasm_initFileSystem(c) { let sgr = UTF8ToString(c); if (sgr.endsWith('/')) sgr = sgr.substr(0, sgr.length - 1); FS.mkdir("persist"); FS.mkdir(sgr); FS.mkdir("persist/" + sgr); FS.mount(IDBFS, {}, "persist/" + sgr); FS.syncfs(true, function (err) { if (err) { console.error('wasm_initFileSystem failed!', err); } else { console.log("wasm_initFileSystem ok"); } }); }
 function wasm_syncFileSystem() { console.log("wasm_syncFileSystem"); FS.syncfs(false, err => { if (err) { console.error("wasm_syncFileSystem failed!!", err); } else { console.log("wasm_syncFileSystem ok"); } }); }
 function downloadAll(manifest) { return Asyncify.handleSleep(resume => { let promises = []; let count = 0; function download(pathPtr) { const path = UTF8ToString(pathPtr); return fetch(path).then(response => { if (!response.ok) { console.error('fetchSync failed', path); HEAP32[size >> 2] = 0; HEAP32[data >> 2] = 0; throw 'fetchSync failed'; } return response.blob(); }).then(blob => blob.arrayBuffer() ).then(array => { const bytes = new Uint8Array(array); const idx = path.lastIndexOf('/'); if (idx != -1) { const dir = path.substr(0, idx); FS.mkdirTree(dir); } FS.writeFile(path.toLowerCase(), bytes); ++count; verge.setLoadingProgress((100 * count / promises.length) | 0) }); } while (true) { let pathPtr = HEAPU32[manifest >> 2]; if (pathPtr == 0) { break; } manifest += 4; promises.push(download(pathPtr)); } Promise.all(promises).then(() => { resume(); }); }); }
@@ -5083,7 +5085,7 @@ function fetchSync(pathPtr,size,data) { return Asyncify.handleSleep(resume => { 
   function runtimeKeepalivePop() {
     }
   var Asyncify = {instrumentWasmImports:function(imports) {
-        var ASYNCIFY_IMPORTS = ["env.fetchSync","env.downloadAll","env.wasm_nextFrame","env.emscripten_sleep","env.invoke_*","env.emscripten_sleep","env.emscripten_wget","env.emscripten_wget_data","env.emscripten_idb_load","env.emscripten_idb_store","env.emscripten_idb_delete","env.emscripten_idb_exists","env.emscripten_idb_load_blob","env.emscripten_idb_store_blob","env.SDL_Delay","env.emscripten_scan_registers","env.emscripten_lazy_load_code","env.emscripten_fiber_swap","wasi_snapshot_preview1.fd_sync","env.__wasi_fd_sync","env._emval_await","env._dlopen_js","env.__asyncjs__*"].map((x) => x.split('.')[1]);
+        var ASYNCIFY_IMPORTS = ["env.fetchSync","env.downloadAll","env.wasm_nextFrameSleep","env.emscripten_sleep","env.invoke_*","env.emscripten_sleep","env.emscripten_wget","env.emscripten_wget_data","env.emscripten_idb_load","env.emscripten_idb_store","env.emscripten_idb_delete","env.emscripten_idb_exists","env.emscripten_idb_load_blob","env.emscripten_idb_store_blob","env.SDL_Delay","env.emscripten_scan_registers","env.emscripten_lazy_load_code","env.emscripten_fiber_swap","wasi_snapshot_preview1.fd_sync","env.__wasi_fd_sync","env._emval_await","env._dlopen_js","env.__asyncjs__*"].map((x) => x.split('.')[1]);
         for (var x in imports) {
           (function(x) {
             var original = imports[x];
@@ -5585,14 +5587,16 @@ var asmLibraryArg = {
   "strftime_l": _strftime_l,
   "wasm_initFileSystem": wasm_initFileSystem,
   "wasm_initSound": wasm_initSound,
+  "wasm_initTimer": wasm_initTimer,
   "wasm_initvga": wasm_initvga,
   "wasm_loadSound": wasm_loadSound,
-  "wasm_nextFrame": wasm_nextFrame,
+  "wasm_nextFrameSleep": wasm_nextFrameSleep,
   "wasm_playSong": wasm_playSong,
   "wasm_playSound": wasm_playSound,
   "wasm_setVolume": wasm_setVolume,
   "wasm_stopMusic": wasm_stopMusic,
   "wasm_syncFileSystem": wasm_syncFileSystem,
+  "wasm_timerUpdate": wasm_timerUpdate,
   "wasm_vgadump": wasm_vgadump,
   "wasm_vgaresize": wasm_vgaresize
 };
@@ -5730,8 +5734,8 @@ var _asyncify_start_rewind = Module["_asyncify_start_rewind"] = createExportWrap
 /** @type {function(...*):?} */
 var _asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = createExportWrapper("asyncify_stop_rewind");
 
-var ___start_em_js = Module['___start_em_js'] = 104620;
-var ___stop_em_js = Module['___stop_em_js'] = 109523;
+var ___start_em_js = Module['___start_em_js'] = 5281964;
+var ___stop_em_js = Module['___stop_em_js'] = 5287421;
 
 
 

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "wasm.h"
+#include "timer.h"
 #include <emscripten.h>
 
 std::string gameRoot;
@@ -37,9 +38,14 @@ EM_JS(void, wasm_vgadump, (uint32_t * frameBuffer, uint32_t frameBufferSize), {
     window.vergeContext.putImageData(window.vergeImageData, 0, 0);
 });
 
-EM_JS(void, wasm_nextFrame, (), {
+EM_JS(void, wasm_nextFrameSleep, (), {
     return Asyncify.handleSleep(requestAnimationFrame);
 });
+
+void wasm_nextFrame() {
+    wasm_nextFrameSleep();
+    timerUpdate();
+}
 
 EM_JS(void, wasm_initFileSystem, (const char* c), {
     let sgr = UTF8ToString(c);
